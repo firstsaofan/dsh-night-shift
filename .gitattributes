@@ -1,0 +1,5 @@
+# 统一换行符：仓库内存 LF，Windows 检出 .ps1 用 CRLF，shell 脚本永远 LF
+* text=auto
+*.sh text eol=lf
+*.ps1 text eol=crlf
+*.md text eol=lf
