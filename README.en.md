@@ -3,6 +3,7 @@
 > **The name is historical.** It applies whenever **the human is away from the device** — night, commute, meetings, lunch. The only criterion: the agent can keep making progress without you.
 >
 > 中文版（主文档）：[`README.md`](README.md) · 设计说明：[`DESIGN.md`](DESIGN.md)（中文）
+> **Not on DSH?** See [`PORTING.md`](PORTING.md) — the skill is **bound to DSH's automation layer** (heartbeat / goal rounds / sub-agents / crash recovery); the rules layer is portable. It includes a per-capability porting checklist for Claude Code, Codex, and any CLI agent.
 
 A DSH skill that makes an agent complete a task list while you are away: implement → verify (evidence-based) → decide by your habits → commit per task (never push) → write summaries → leave you a 5-minute morning brief.
 
@@ -124,6 +125,23 @@ you: "run night-shift on BUG-BOARD"
 
 ---
 
+## Portability
+
+This skill is **DSH-bound**, but only in its automation layer:
+
+| Layer | Portable? | What to change on another agent |
+|---|---|---|
+| Rules (habits, verification, templates, dependency/git policy, knowledge layers) | ✅ copy as-is | nothing |
+| Heartbeat (crash resume) | ❌ DSH-only | cron/scheduler + agent CLI; **new session each time**, rebuild context from `night-shift/` state |
+| Goal rounds | ❌ DSH-only | external loop script, or manual "continue" |
+| Sub-agents + model routing | 🟡 platform-specific | use the platform's sub-agent mechanism; drop the parallel section if none |
+| Instruction injection (`AGENTS.md`) | 🟢 concept is common | rename to `CLAUDE.md` / keep `AGENTS.md` |
+| Liveness signal | 🟡 different format | the platform's session log path |
+
+Full checklist: [`PORTING.md`](PORTING.md) (Chinese).
+
+---
+
 ## Files
 
 ```
@@ -132,6 +150,7 @@ night-shift/
 ├── README.md             human manual (Chinese)
 ├── README.en.md          human manual (English, this file)
 ├── DESIGN.md             design notes: diagrams, flows, file map (Chinese)
+├── PORTING.md            porting guide: what to change on another agent (Chinese)
 ├── references/           habits / verification / templates / project-init / host-level
 └── scripts/              optional host scripts (not loaded by the skill)
     ├── windows/{setup.ps1, watchdog.ps1}

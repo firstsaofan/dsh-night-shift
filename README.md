@@ -6,6 +6,7 @@
 > **给 agent 的操作手册**：本目录 `SKILL.md` + `references/`（agent 会按需加载，人不必读完）。
 > **本文 README 是给人看的**：怎么用、为什么这么设计、什么时候该加脚本/小系统。
 > **English**: [`README.en.md`](README.en.md)
+> **不是 DSH 用户？** 看 [`PORTING.md`](PORTING.md)：这个 skill **绑定 DSH 的自动化层**（心跳/轮次/子代理/崩溃恢复），但规则层可移植；里面有逐项改造清单（Claude Code / Codex / 任意 CLI agent）。
 
 让 DSH 在你睡觉/不在电脑前时自主完成任务列表：实现 → 验证（证据制）→ 按你的习惯决策 → 提交（不 push）→ 总结沉淀 → 早上给你一份 5 分钟能扫完的简报。
 
@@ -16,6 +17,7 @@ night-shift/
 ├── SKILL.md                      # agent 主手册：模式判定/三原则/主流程/git 规则
 ├── README.md                     # 本文件：给人的使用说明 + 设计理由 + 升级路线
 ├── DESIGN.md                     # 设计说明：架构图/时序图/流程图/文件地图/参数表（想搞懂结构先看这个）
+├── PORTING.md                    # 移植指南：换 agent 需要改什么（心跳/轮次/子代理/看门狗替代方案）
 └── references/
     ├── habits.md                 # 习惯决策树：自由区/禁区/拿不准的默认倾向
     ├── verification.md           # 验证协议：按任务类型的最低证据要求
