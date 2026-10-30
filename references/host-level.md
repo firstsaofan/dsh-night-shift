@@ -34,6 +34,23 @@ $DSH_HOME/night-shift/                 # Windows: ~\.dsh\night-shift\   macOS: ~
     └── macos/watchdog.sh              # 由 launchd 每 600 秒调用
 ```
 
+### config.json 字段表（每个字段都有人消费，别写"没人读"的值）
+
+| 字段 | 默认 | 谁消费 | 改它要注意 |
+|---|---|---|---|
+| `version` | `1` | 脚本（保留，供未来 schema 判断） | — |
+| `centralKnowledge` | `$DSH_HOME/night-shift/central-knowledge` | **skill**（项目初始化的指针块） | 改后已初始化项目的指针要重写 |
+| `dshExecutable` | 自动探测 | **看门狗**（拉起进程） | 路径错 → 崩溃时拉不起来 |
+| `dshProcessName` | `DeepSeek Harness` | **看门狗**（进程检测） | 应用改名后要同步 |
+| `heartbeatSeconds` | `900`（15 分钟） | **skill**（建提醒时读，不写死） | 改小→恢复快但更贵；改大→相反 |
+| `stallMinutes` | `40` | 看门狗（仅 `enableStallCheck=true`） | **应与心跳联动**：≈ 2×`heartbeatSeconds`/60 + 10 |
+| `enableStallCheck` | `false` | 看门狗 | 开了才判卡死；长任务多的项目别开 |
+| `staleHours` | `18` | 看门狗（清陈旧 run） | 夜班可能超 18 小时时才调大 |
+| `hostSetup.subagentModel` | — | **skill**（初始化检查） | `maxTokens` 建议省略（用模型默认） |
+| `hostSetup.watchdog` | — | skill（初始化检查）+ `setup` 脚本 | 安装/卸载时脚本自动改，别手改 |
+
+> **不在 config.json 里的两个参数**：`max_goal_rounds`（建 goal 时给，建议 20~40）和 `blockedAfterConsecutiveRounds`（引擎配置，默认 3）。别把它们写进 config.json——没人读。
+
 ## 二、运行登记表协议（skill 侧，多项目并发的基础）
 
 > **术语澄清**：这里的"运行登记表"指 `$DSH_HOME/night-shift/runs/` 目录下的 **JSON 文件清单**（每个进行中的夜班一条），**与 Windows 系统注册表（regedit）完全无关**——本方案不读写任何系统注册表项。

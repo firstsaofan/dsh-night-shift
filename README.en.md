@@ -26,8 +26,11 @@ If you are present, none of the "default decisions" apply — the agent asks as 
    agentOptions:
      provider: <your provider id>
      model: <your cheapest model id>
-     maxTokens: 32000
+     # maxTokens is optional: omit it to use the model's default output cap
+     # (it caps a single reply, NOT the context window)
    ```
+
+   `maxTokens` caps **one reply's output**, not the context window — the context window comes from the model definition and is usually hundreds of thousands to millions of tokens. Prefer omitting it; set it only when you deliberately want to limit output length. If unsure about a model's limit, have the agent look it up and confirm with you.
    Sub-agents inherit the parent model unless configured. Takes effect in **new sessions**.
 4. **Retries**: keep the default (5). Do **not** set `retryPolicy: always` globally — it is provider-wide and would affect daytime sessions. Night-shift failures are absorbed by the heartbeat instead.
 
@@ -89,10 +92,10 @@ you: "run night-shift on BUG-BOARD"
 
 | Parameter | Value | Where |
 |---|---|---|
-| Heartbeat interval | 15 min | created by the skill at start |
+| Heartbeat interval | 15 min (default) | `config.json.heartbeatSeconds` — the skill reads it when creating the reminder |
 | Watchdog interval | 10 min | scheduled task |
 | Stale run | 18 h | `config.json.staleHours` |
-| Stall check | off by default (40 min) | `config.json.enableStallCheck` / `stallMinutes` |
+| Stall check | off by default (40 min) | `config.json.enableStallCheck` / `stallMinutes` (keep ≈ 2× heartbeat + 10 min) |
 | Model retries | 5 (default) | profile `retryPolicy.maxRetries` |
 | Research time box | ~10 min per task | project template |
 | Goal rounds | 20–40 | `max_goal_rounds` at goal creation |

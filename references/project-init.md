@@ -42,7 +42,11 @@
 
 **模板升级**：标记的 `v0` 随规则迭代递增（v1、v2…）。**指针形态下升级不用改项目文件**——改 skill 里的规则正文即可全项目生效；只有"项目类型判定变了"或"指针指向变了"才需要重写指针块。发现旧版本标记 → 简报提示"指针 v0→v1"，用户点头后只替换标记段落。
 
-**主机级依赖（项目初始化只检查、不安装）**：本初始化**不做**看门狗/调度/运行登记表——那些是主机能力，装一次全局唯一，见 `host-level.md`。初始化时**读 `$DSH_HOME/night-shift/config.json` 的 `hostSetup` 块**：`subagentModel.configured=true` → 子代理模型已配，跳过；`watchdog.installed=true` → 看门狗已装，跳过；未配/未装 → 预检单提示并给对应 OS 的安装命令（Windows / macOS 各一条），等用户执行。**跨 OS 可移植**：模板里不写死绝对路径，集中通用层一律用 `<centralKnowledge>` 占位（由 `config.json` 提供，默认 `$DSH_HOME/night-shift/central-knowledge`）。
+**主机级依赖（项目初始化只检查、不安装）**：本初始化**不做**看门狗/调度/运行登记表——那些是主机能力，装一次全局唯一，见 `host-level.md`。初始化时**读 `$DSH_HOME/night-shift/config.json` 的 `hostSetup` 块**：`subagentModel.configured=true` → 子代理模型已配，跳过；`watchdog.installed=true` → 看门狗已装，跳过；未配/未装 → 预检单提示并给对应 OS 的安装命令（Windows / macOS 各一条），等用户执行。
+
+**子代理输出上限（`maxTokens`）不由 agent 猜**：推荐**省略**（用模型默认输出上限，通常是模型的最大值）。若用户想限制单次输出，agent 应先**查该模型文档**（上下文窗口与输出上限是两个数），把建议值写进预检单让用户确认，再写入 preset 与 `hostSetup.subagentModel.maxTokens`。**注意 `maxTokens` 是单次输出上限，不是上下文窗口**——别用"百万上下文"去推断它。
+
+**跨 OS 可移植**：模板里不写死绝对路径，集中通用层一律用 `<centralKnowledge>` 占位（由 `config.json` 提供，默认 `$DSH_HOME/night-shift/central-knowledge`）。
 
 ## 二、知识沉淀三层结构（2026-10-30 定稿：原始层 / 派生层 / 通用层）
 

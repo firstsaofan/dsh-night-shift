@@ -318,13 +318,14 @@ flowchart LR
 
 | 参数 | 值 | 在哪改 | 为什么 |
 |---|---|---|---|
-| 心跳间隔 | 15 分钟 | SKILL 开工时 `schedule_create` | 便宜模型 + 夜间半价，成本可接受；崩溃后最多 15 分钟接上 |
+| 心跳间隔 | 15 分钟（默认） | `config.json.heartbeatSeconds`（SKILL 建提醒时读） | 改小→恢复快但更贵；改大→相反 |
 | 看门狗周期 | 10 分钟 | 计划任务 | 与心跳错开，崩溃后 10 分钟内发现 |
 | 陈旧 run | 18 小时 | `config.json.staleHours` | 防收尾漏删导致白天反复重启 |
-| 卡死阈值 | 40 分钟（默认关） | `config.json.stallMinutes` + `enableStallCheck` | 2×心跳 + 10 分钟余量；默认关避免误杀长任务 |
+| 卡死阈值 | 40 分钟（默认关） | `config.json.stallMinutes` + `enableStallCheck` | ≈2×心跳 + 10 分钟余量；默认关避免误杀长任务 |
 | 模型重试 | 5 次（默认） | profile `retryPolicy.maxRetries` | 不改全局 `always`；耗尽由心跳接管 |
 | 调研时间盒 | ~10 分钟/任务 | project-init 模板 | 防止整晚卡在调研 |
 | 子代理模型 | 由你的 preset 决定（选个便宜的） | 用户 preset `tool-subagent.agentOptions` | 默认继承父模型，必须显式配置才便宜 |
+| 子代理输出上限 | 省略（= 模型默认） | preset `agentOptions.maxTokens` | 是**单次输出上限**，不是上下文窗口 |
 
 ---
 
