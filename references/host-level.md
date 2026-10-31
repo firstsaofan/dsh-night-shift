@@ -29,7 +29,8 @@ $DSH_HOME/night-shift/                 # Windows: ~\.dsh\night-shift\   macOS: ~
 ├── watchdog.lock                      # 单例锁（防两次唤醒重叠）
 └── scripts/
     ├── windows/setup.ps1              # 一次性安装（幂等）
-    ├── windows/watchdog.ps1           # 每 10 分钟由任务计划程序调用
+    ├── windows/watchdog-launch.vbs    # 任务入口：wscript 宿主，无窗口拉起 watchdog.ps1
+    ├── windows/watchdog.ps1           # 每 10 分钟由任务计划程序（经启动器）调用
     ├── macos/setup.sh                 # 一次性安装（幂等）
     └── macos/watchdog.sh              # 由 launchd 每 600 秒调用
 ```
@@ -101,7 +102,7 @@ $DSH_HOME/night-shift/                 # Windows: ~\.dsh\night-shift\   macOS: ~
 
 **安装**（只装看门狗，不装自启）：
 
-- **Windows**：`powershell -ExecutionPolicy Bypass -File scripts/windows/setup.ps1` → 写 config + 注册任务计划（每 10 分钟）；**不注册开机自启**；
+- **Windows**：`pwsh -NoProfile -File scripts/windows/setup.ps1` → 写 config + 注册任务计划（每 10 分钟，经 `watchdog-launch.vbs` 由 `wscript.exe` 无窗口启动）；**不注册开机自启**；
 - **macOS**：`bash scripts/macos/setup.sh` → 写 config + 写 LaunchAgent（`StartInterval 600`）；**不设 RunAtLoad**；
 - **幂等**：已存在则更新，不重复注册；`--uninstall` 卸载；
 - **重启/杀进程不需要重新初始化**：看门狗只启动进程，不写任何项目文件；skill 靠标记跳过已完成的初始化。

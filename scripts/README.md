@@ -9,6 +9,7 @@
 scripts/
 ├── windows/
 │   ├── setup.ps1       # 一次性安装/卸载（幂等）：复制看门狗 + 写 config + 注册计划任务
+│   ├── watchdog-launch.vbs  # 计划任务的入口（wscript 宿主）：无窗口启动 watchdog.ps1
 │   └── watchdog.ps1    # 每 10 分钟跑一次：只在"有活动夜班且 DSH 不在"时拉起
 └── macos/
     ├── setup.sh        # 同上（LaunchAgent，StartInterval 600）
@@ -23,7 +24,7 @@ scripts/
 # 先看会做什么（不改任何东西）
 pwsh -NoProfile -File setup.ps1 -DryRun
 
-# 安装（注册计划任务：每 10 分钟；不注册开机自启）
+# 安装（注册计划任务：每 10 分钟，经 wscript 启动器无窗口运行；不注册开机自启）
 pwsh -NoProfile -File setup.ps1
 
 # 如果自动探测不到 DSH 路径
@@ -58,6 +59,7 @@ bash setup.sh -u    # 卸载
 
 - **不做开机自启**（设计如此）：不打开 DSH = 当前不需要。
 - **计划任务常驻 ≠ 开机自启**：前者每 10 分钟检查一次，无活动夜班立即退出。
+- **任务入口必须是 `watchdog-launch.vbs`，不要直接指向 `pwsh.exe`**：控制台程序启动瞬间会闪一个黑窗（`-WindowStyle Hidden` 只是"建完再藏"），每 10 分钟一次会打断正常使用；`wscript.exe` 是 GUI 子系统宿主，整条链路不创建控制台。若机器上 WSH 被禁用/移除，任务会失败且不闪窗——`watchdog.log` 里会留 `launcher: ...` 记录，`setup.ps1` 也会在注册前直接报错。
 - **本机统一用 PowerShell 7（`pwsh`），不用 5.1（`powershell.exe`）**（全局 AGENTS.md §9）：脚本 `#Requires -Version 7.0`，`setup.ps1` 找不到 `pwsh` 会直接报错而不是退回 5.1；计划任务也用 `pwsh` 运行。
 - 脚本内容为 ASCII，`config.json` 以 **UTF-8 无 BOM** 读写（仍显式指定编码，防止将来有人用 5.1 跑出乱码）。
 - 改脚本的正确方式：改仓库 → 重跑 `setup`（覆盖主机副本），不要直接改 `~/.dsh/night-shift/scripts/` 里的副本。

@@ -16,6 +16,10 @@
     4. Register scheduled task 'DSH Night Watchdog' every 10 minutes
        (runs only while you are logged on; no password stored).
 
+  The task does not call pwsh.exe directly. It calls watchdog-launch.vbs
+  through wscript.exe, so no console window is ever created: a direct pwsh
+  call flashes a black window on every run, even with -WindowStyle Hidden.
+
   Uninstall:
     1. Remove the scheduled task.
     2. Set hostSetup.watchdog.installed = false.
@@ -58,6 +62,8 @@ $scriptsDir  = Join-Path $root 'scripts'
 $runsDir     = Join-Path $root 'runs'
 $watchdogSrc = Join-Path $PSScriptRoot 'watchdog.ps1'
 $watchdogDst = Join-Path $scriptsDir 'watchdog.ps1'
+$launcherSrc = Join-Path $PSScriptRoot 'watchdog-launch.vbs'
+$launcherDst = Join-Path $scriptsDir 'watchdog-launch.vbs'
 
 function Say([string]$Message) { Write-Host $Message }
 
@@ -140,6 +146,13 @@ if (-not (Test-Path -LiteralPath $watchdogSrc)) {
 if ($DryRun) { Say "[dry-run] would copy $watchdogSrc -> $watchdogDst" }
 else { Copy-Item -LiteralPath $watchdogSrc -Destination $watchdogDst -Force; Say "copied watchdog -> $watchdogDst" }
 
+# 1b) copy the wscript launcher (keeps the scheduled task from flashing a console window)
+if (-not (Test-Path -LiteralPath $launcherSrc)) {
+    throw "watchdog-launch.vbs not found next to setup.ps1: $launcherSrc"
+}
+if ($DryRun) { Say "[dry-run] would copy $launcherSrc -> $launcherDst" }
+else { Copy-Item -LiteralPath $launcherSrc -Destination $launcherDst -Force; Say "copied launcher -> $launcherDst" }
+
 # 2) config.json
 $cfg = Read-Config
 $isNew = ($null -eq $cfg)
@@ -184,19 +197,24 @@ $cfg.hostSetup.watchdog | Add-Member -NotePropertyName note -NotePropertyValue '
 Save-Config $cfg
 
 # 3) scheduled task
-$runner = Get-Runner
-$argString = '-NoProfile -WindowStyle Hidden -File "{0}"' -f $watchdogDst
+$pwshExe = Get-Runner
+$wscriptExe = Join-Path $env:SystemRoot 'System32\wscript.exe'
+$argString = '"{0}"' -f $launcherDst
 
 if ($DryRun) {
     Say "[dry-run] would register task '$taskName':"
-    Say "  program : $runner"
+    Say "  program : $wscriptExe"
     Say "  args    : $argString"
+    Say "  launcher: $launcherDst -> `"$pwshExe`" -NoProfile -WindowStyle Hidden -File `"$watchdogDst`""
     Say '  trigger : every 10 minutes, run only while logged on'
-    Say '  (no auto-start at login)'
+    Say '  (no auto-start at login, no console window)'
     return
 }
 
-$action = New-ScheduledTaskAction -Execute $runner -Argument $argString
+if (-not (Test-Path -LiteralPath $wscriptExe)) {
+    throw "wscript.exe not found: $wscriptExe  (Windows Script Host may be disabled or removed; the watchdog cannot run without it)"
+}
+$action = New-ScheduledTaskAction -Execute $wscriptExe -Argument $argString
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 10)
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 10)
 $settings.DisallowStartIfOnBatteries = $false
@@ -204,7 +222,7 @@ $settings.DisallowStartIfOnBatteries = $false
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings `
     -Description 'DSH night-shift crash recovery: starts DSH only when a night-shift run is registered.' -Force | Out-Null
 
-Say "scheduled task '$taskName' registered (every 10 minutes, logged-on only)"
+Say "scheduled task '$taskName' registered (every 10 minutes, logged-on only, via wscript.exe -> no console window)"
 Say 'no auto-start at login was added (by design)'
 Say ''
 Say 'verify with:  Get-ScheduledTask -TaskName "DSH Night Watchdog" | Format-List'

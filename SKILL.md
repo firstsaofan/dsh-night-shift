@@ -1,6 +1,6 @@
 ---
 name: night-shift
-description: 无人值守流水线（不限夜间）——人不在设备前时自主完成任务列表（验证证据、习惯决策树、决策日志、任务总结、晨间简报、升级标记）。当用户说"夜班"、"挂机"、"无人值守"、"睡觉/出门/开会/通勤时自动跑"、"自动完成 BUG-BOARD/任务清单"，或声明"我不在/去休息了/离开电脑/出门了"让任务自动推进时使用。Unattended automation: when the human is away from the device (night, commute, meetings, lunch), autonomously complete the task list with evidence-based verification, habit defaults, decision log and a morning brief.
+description: '无人值守流水线（不限夜间）——人不在设备前时自主完成任务列表（验证证据、习惯决策树、决策日志、任务总结、晨间简报、升级标记）。当用户说"夜班"、"挂机"、"无人值守"、"睡觉/出门/开会/通勤时自动跑"、"自动完成 BUG-BOARD/任务清单"，或声明"我不在/去休息了/离开电脑/出门了"让任务自动推进时使用。Unattended automation: when the human is away from the device (night, commute, meetings, lunch), autonomously complete the task list with evidence-based verification, habit defaults, decision log and a morning brief.'
 ---
 
 # Night Shift 无人值守流水线

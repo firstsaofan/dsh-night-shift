@@ -20,7 +20,7 @@ If you are present, none of the "default decisions" apply — the agent asks as 
 ## Install
 
 1. **Skill body** (once): copy this folder to `~/.dsh/skills/night-shift`. DSH hot-reloads it; no restart needed.
-2. **Host-level watchdog** (optional, one per machine): `pwsh -NoProfile -File scripts/windows/setup.ps1` (Windows) or `bash scripts/macos/setup.sh` (macOS, untested). Registers a 10-minute scheduled check that starts DSH **only when a night-shift run is registered and the process is gone**. It does **not** register login auto-start.
+2. **Host-level watchdog** (optional, one per machine): `pwsh -NoProfile -File scripts/windows/setup.ps1` (Windows) or `bash scripts/macos/setup.sh` (macOS, untested). Registers a 10-minute scheduled check that starts DSH **only when a night-shift run is registered and the process is gone**. On Windows the task runs `watchdog-launch.vbs` through `wscript.exe`, so no console window flashes every 10 minutes. It does **not** register login auto-start.
 3. **Sub-agent model** (optional): add `agentOptions` to `tool-subagent` in your user preset so sub-agents run on a cheap model:
    ```yaml
    modelSelectionSettings: true
@@ -153,6 +153,6 @@ night-shift/
 ├── PORTING.md            porting guide: what to change on another agent (Chinese)
 ├── references/           habits / verification / templates / project-init / host-level
 └── scripts/              optional host scripts (not loaded by the skill)
-    ├── windows/{setup.ps1, watchdog.ps1}
+    ├── windows/{setup.ps1, watchdog-launch.vbs, watchdog.ps1}
     └── macos/{setup.sh, watchdog.sh}
 ```

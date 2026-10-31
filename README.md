@@ -26,7 +26,7 @@ night-shift/
     └── host-level.md             # 主机级单例：跨项目运行登记表/看门狗/Windows 与 macOS 安装脚本
 
 scripts/                          # 【可选】主机级组件，不被 skill 加载，不影响纯 markdown 本体
-├── windows/{setup.ps1, watchdog.ps1}
+├── windows/{setup.ps1, watchdog-launch.vbs, watchdog.ps1}
 └── macos/{setup.sh, watchdog.sh} # 仅设计对齐，不实测
 ```
 
@@ -99,7 +99,7 @@ $DSH_HOME/night-shift/            # Win: ~\.dsh\night-shift\   Mac: ~/.dsh/night
 └── scripts/windows|macos/        # setup + watchdog（按 OS 分；macOS 仅设计对齐，不实测）
 ```
 
-- **装**：Windows `pwsh -NoProfile -File scripts/windows/setup.ps1`（任务计划每 10 分钟，用 pwsh 7 运行）/ macOS `bash scripts/macos/setup.sh`（LaunchAgent `StartInterval 600`）——**都不注册开机自启**；用法与行为契约见 [`scripts/README.md`](scripts/README.md)
+- **装**：Windows `pwsh -NoProfile -File scripts/windows/setup.ps1`（任务计划每 10 分钟，经 `watchdog-launch.vbs` 由 `wscript.exe` 无窗口启动 pwsh 7）/ macOS `bash scripts/macos/setup.sh`（LaunchAgent `StartInterval 600`）——**都不注册开机自启**；用法与行为契约见 [`scripts/README.md`](scripts/README.md)
 - **幂等**：已装则更新；`--uninstall` 卸载；**重启/杀进程都不需要重新初始化**
 - **项目初始化只检查、不安装**：缺主机级时在预检单提示并给安装命令
 - **降级**：未装看门狗时，崩溃后你手动打开 DSH，心跳会自动恢复冷会话并续跑（只是失去"自动拉起"这一层）

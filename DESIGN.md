@@ -270,7 +270,7 @@ flowchart LR
 │   ├── project-init.md    项目初始化（指针块 + 三层结构）
 │   └── host-level.md      主机级（登记表/看门狗/OS 差异）
 └── scripts/               可选主机脚本（不被 skill 加载）
-    ├── windows/{setup.ps1, watchdog.ps1}
+    ├── windows/{setup.ps1, watchdog-launch.vbs, watchdog.ps1}
     └── macos/{setup.sh, watchdog.sh}
 
 安装副本（~\.dsh\skills\night-shift\）                       ← DSH 实际加载
@@ -280,7 +280,7 @@ flowchart LR
 ├── config.json            centralKnowledge / dshExecutable / 心跳与阈值 / hostSetup
 ├── runs/<sessionId>.json  运行登记表（夜班进行中才有）
 ├── watchdog.log           只在状态变化时写
-└── scripts/watchdog.ps1   主机副本（计划任务调用它）
+└── scripts/               主机副本（计划任务 → watchdog-launch.vbs → watchdog.ps1）
 
 项目级（各项目工作区）                                        ← 每项目一份
 ├── AGENTS.md              + 指针块（类型/集中层路径/规则正文指针/项目差量）
