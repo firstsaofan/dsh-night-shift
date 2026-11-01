@@ -166,6 +166,84 @@ $DSH_HOME/night-shift/            # Win: ~\.dsh\night-shift\   Mac: ~/.dsh/night
 
 **限制**：① 心跳只在 **Web 宿主（桌面 GUI）** 可用，headless 组合不支持 schedule；② **睡眠期间定时器不跑**（进程冻结），唤醒后只补发最近一次——所以"关屏幕不睡眠"仍是硬要求；③ **成本模型**：每次心跳 ≈ "当时整段会话上下文"（固定开销 15k~30k + 历史 10k→150k 递增），**不是那条提醒文字的 100 tokens**；只有"真正起了一轮 turn"才花钱（⚠️ 2026-11-01 实测：会话**忙时**到点的提醒既没当场投递、turn 结束后也没补投——"只进队列"这一条**未被证实**，别指望忙时错过的那次还回来）；④ 只补发最近一次，长停机不会补一串；⑤ 夜班结束删心跳 = 白天零成本。**间隔默认 15 分钟**（读 `config.json` 的 `heartbeatSeconds`，可在该文件里改；心跳与直线任务走便宜模型、夜间价格约白天一半，成本可接受；跑一晚看 GUI token 统计再校准）。
 
+### 首次使用必做：可用性实测（无人值守，先验证再挂机）
+
+> **为什么必须测**：这个 skill 的使用场景是**人不在场、全自动跑**。它"看起来装好了"不代表"能自己跑"——这条链上有 4 个环节容易静默失效：① DSH 会静默丢弃 frontmatter 解析失败的 skill；② 子代理 `agentOptions` 配错时**不报错，直接退回父代理模型**；③ 心跳用错时序参数（一次性而非周期）时，到点会话忙就永久错过；④ 挂机门禁没执行时，你拿不到"可以走了"的信号。
+>
+> **所以：第一次用、或每次升级 DSH / 换机器后，先花 ~15 分钟跑完下面两项实测，全绿再挂机。** 不测就挂机，风险是"第二天早上任务从没开始 / 跑一轮就停 / 一直空转烧 token"，而且失败时不报错。
+
+#### 实测 A：子代理路由（1 分钟，必做）
+
+**新开一个会话**，整段粘贴：
+
+```text
+帮我做一个「子代理路由自检」。只做这几步，不要修改任何文件、不要提交、不要安装任何东西、不要派第二个子代理：
+
+1. 调用 subagent 工具派一个子代理，它的 prompt 用这一段（原样）：
+   不要调用任何工具、不要读取任何文件。用一句话回答两件事：
+   ① 你系统提示开头 "powered by … model" 那句的原文是什么？
+   ② 你能看到的模型标识是什么？
+
+2. 等它返回，把它的话原样贴出来，不要改写、不要总结。
+
+3. 按下面规则给出结论行：
+   - 子代理报告的模型标识与你在 agentOptions 里配的便宜模型一致 → RESULT: PASS
+   - 报告的是父代理模型或其它值 → RESULT: FAIL
+   - subagent 工具本身报错 → 原样贴出错误并 RESULT: ERROR
+
+最后只回：子代理原话 / RESULT 行。
+```
+
+- `PASS` → 子代理路由正常。
+- `FAIL` → 查 `references/host-level.md §十`（两个坑：provider 拼写、agentOptions 写在哪个 preset）。
+- `ERROR` → 错误信息通常点名 provider，贴回排查。
+
+#### 实测 B：skill 主链路（约 10 分钟，必做）
+
+**测前先把间隔临时调短**（否则一次测试要等十几分钟）：
+
+```powershell
+# 看门狗 3 分钟（提权；改计划任务触发器）
+pwsh -NoProfile -Command "$t=Get-ScheduledTask -TaskName 'DSH Night Watchdog'; $a=$t.Actions; $tr=New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 3); $s=Get-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew; Set-ScheduledTask -TaskName 'DSH Night Watchdog' -Action $a -Trigger $tr -Settings $s"
+
+# 心跳 900 → 60 秒
+(Get-Content "$env:USERPROFILE\.dsh\night-shift\config.json" -Raw) -replace '"heartbeatSeconds": \d+', '"heartbeatSeconds": 60' | Set-Content "$env:USERPROFILE\.dsh\night-shift\config.json" -Encoding utf8
+```
+
+**准备一个 5~10 分钟能做完的小任务**（写进文件，别粘进对话），例：`.tmp\smoke-plan.md`
+
+```markdown
+# 冒烟任务
+- [ ] 1. 生成 .tmp\smoke\index.html：单文件、无外部依赖、内联样式，含 3 段说明文字
+- [ ] 2. 用 pwsh 统计文件大小并写进 night-shift/summaries 的任务总结
+- [ ] 3. 在文件里把两条任务标 ✅ 并附总结链接
+```
+
+**新开一个会话**，粘贴（路径换成你的）：
+
+```text
+按 night-shift skill 进入无人值守夜班模式，完成 F:\<你的工作区>\.tmp\smoke-plan.md 里的全部任务。
+清单就在那个文件里。我现在离开设备，不会回答任何问题；拿不准按 skill 的习惯默认处置并记 DECISIONS.md。
+做完输出 === DONE === 加产物路径与文件大小。
+```
+
+然后按信号操作，逐步核对：
+
+| # | 你要做的 / 要看到的 | 判定 |
+|---|---|---|
+| 1 | 聊天窗口弹出 **`present` 的门禁卡片** / 正文出现 `✅ NIGHT-SHIFT READY TO LEAVE` 块 | 没有 = 门禁未执行 → 查安装副本是否最新 |
+| 2 | 磁盘上出现 `night-shift/GATE.md` | 硬留证，没有就说明门禁没做 |
+| 3 | `~/.dsh/night-shift/runs/` 出现本会话 JSON | 看门狗才认这个 |
+| 4 | 在它干活途中杀 DSH：`Stop-Process -Name 'DeepSeek Harness' -ErrorAction SilentlyContinue` | — |
+| 5 | 等看门狗间隔（测试 3 分钟），`watchdog.log` 出现新的 `starting` 行 | 没拉起 → 查计划任务是否存在、间隔、动作 |
+| 6 | DSH 自动弹回后打开会话，它自己接着干完（`=== RESUMED` → `=== DONE ===`） | 不续跑 → 查 HEARTBEAT.md / schedule_list / runs |
+
+**四项全绿才算 skill 可用**：门禁卡片 + GATE.md + 看门狗拉起 + 任务续完并自清（删心跳/run、有插件则调 `sweep_schedule_inbox`）。
+
+**测完把间隔改回去**：看门狗 10 分钟、心跳 900 秒（同样两条命令把 `-Minutes 3` 换回 `-Minutes 10`、`60` 换回 `900`）。真实夜班用大间隔，间隔太小会烧 token。
+
+> 详细版（含每个失败现象的排查表、插件安装、积压处理）在 `references/host-level.md §十一 / §十二`。
+
 ### 首夜前置检查（三项全绿才开夜班）
 
 1. **续轮验证**：建一个测试 goal，确认 agent 空闲后会自动进入下一轮（说明 goal-round-driver 已挂载）；
