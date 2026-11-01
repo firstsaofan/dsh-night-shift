@@ -327,10 +327,13 @@ pwsh -NoProfile -Command "`$t=Get-ScheduledTask -TaskName 'DSH Night Watchdog'; 
 
 见 §十二。**不装也能用**，只是任务完成前堆积的心跳会在完成后空转几轮。
 
+插件开源地址：<https://github.com/firstsaofan/dsh-plugin-schedule-sweep>
+
 安装（装完**重启 DSH** 生效，装载进 desktop profile 的 bundles）：
 
 ```powershell
-dsh plugin --profile desktop add dsh-plugin-schedule-sweep
+# 从 Git 仓库直接装（推荐，仓库内已带构建产物，无需本地 build）：
+dsh plugin --profile desktop add https://github.com/firstsaofan/dsh-plugin-schedule-sweep
 # 若从本地源码目录安装（路径换成你自己的插件目录）：
 # dsh plugin --profile desktop add <你的插件本地路径>
 ```
@@ -356,7 +359,7 @@ composition 里装了两次（查 bundles 是否重复）。
 2. 排空轮已写死"不读文件、不调工具，只回一行"（成本 = 一次历史 input，不是任务本身）；
 3. 任务完成即删心跳（停掉后续触发）。
 
-**根治（插件）**：装 `dsh-plugin-schedule-sweep` 后，skill 收尾时**必须调用** `sweep_schedule_inbox`（SKILL §0.5 已写成硬要求：工具在列表里就必须调），把收件箱里 `source.kind==='schedule'` 的待处理消息全部删掉——**只删心跳消息，不动用户真消息**。不装则跳过这一步（工具不在列表里，自然不调）。
+**根治（插件）**：装 [`dsh-plugin-schedule-sweep`](https://github.com/firstsaofan/dsh-plugin-schedule-sweep) 后，skill 收尾时**必须调用** `sweep_schedule_inbox`（SKILL §0.5 已写成硬要求：工具在列表里就必须调），把收件箱里 `source.kind==='schedule'` 的待处理消息全部删掉——**只删心跳消息，不动用户真消息**。不装则跳过这一步（工具不在列表里，自然不调）。
 
 收尾完整顺序（四步，不可颠倒）：
 

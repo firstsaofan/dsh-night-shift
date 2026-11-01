@@ -336,6 +336,22 @@ habit 规则（habits.md 默认表 + 夜班 preset）在正式挂机前用 eval 
 - 纯机械、批量、重复计算？→ 小脚本/小系统（场景 5、6）
 - 以上都不是，只是"希望它更规范"？→ **还是改 skill，不升级**
 
+### 已落地的配套插件：`dsh-plugin-schedule-sweep`
+
+目前唯一从"升级路线"变成真实代码的配套插件，开源地址：
+<https://github.com/firstsaofan/dsh-plugin-schedule-sweep>
+
+它解决**任务完成前心跳堆积、完成后空转烧 token** 的问题（心跳每 N 秒往 agent 收件箱推一条提醒，
+`schedule_delete` 清不掉已排队消息）。装了它，skill 收尾会多调一次 `sweep_schedule_inbox`
+把积压清空。**可选**——不装 skill 照常能用，只是完成后会多几轮空转。
+
+```powershell
+# 从 Git 直接装（仓库自带构建产物，无需本地 build），装完重启 DSH
+dsh plugin --profile desktop add https://github.com/firstsaofan/dsh-plugin-schedule-sweep
+```
+
+详见 `references/host-level.md §十一 自检C` 与 `§十二`。
+
 ## 边界（本 skill 不做什么）
 
 - **修复类**不装任何依赖（红线）；功能类仅在四条件齐备时自主装（见上"依赖引入策略"）；不删文件、不 push、不碰工作区外——需要时写进简报等人。
