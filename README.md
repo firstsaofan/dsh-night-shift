@@ -222,7 +222,7 @@ pwsh -NoProfile -Command "$t=Get-ScheduledTask -TaskName 'DSH Night Watchdog'; $
 **新开一个会话**，粘贴（路径换成你的）：
 
 ```text
-按 night-shift skill 进入无人值守夜班模式，完成 F:\<你的工作区>\.tmp\smoke-plan.md 里的全部任务。
+按 night-shift skill 进入无人值守夜班模式，完成 <你的工作区>/.tmp/smoke-plan.md 里的全部任务。
 清单就在那个文件里。我现在离开设备，不会回答任何问题；拿不准按 skill 的习惯默认处置并记 DECISIONS.md。
 做完输出 === DONE === 加产物路径与文件大小。
 ```

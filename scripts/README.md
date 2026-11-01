@@ -28,7 +28,7 @@ pwsh -NoProfile -File setup.ps1 -DryRun
 pwsh -NoProfile -File setup.ps1
 
 # 如果自动探测不到 DSH 路径
-pwsh -NoProfile -File setup.ps1 -DshExecutable "D:\...\DeepSeek Harness.exe"
+pwsh -NoProfile -File setup.ps1 -DshExecutable "<你的 DSH 可执行文件路径>"
 
 # 卸载（移除计划任务，脚本与 config 留在磁盘）
 pwsh -NoProfile -File setup.ps1 -Uninstall

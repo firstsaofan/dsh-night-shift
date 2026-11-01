@@ -59,7 +59,7 @@ $DSH_HOME/night-shift/                 # Windows: ~\.dsh\night-shift\   macOS: ~
 **开工**（进入夜班、建心跳后）写一条：
 
 ```json
-{ "workspace": "<绝对路径，如 /home/me/projA 或 D:\\work\\projA>", "sessionId": "session-xxxx", "startedAt": "2026-10-30T23:00:00+08:00", "heartbeatId": "..." }
+{ "workspace": "<工作区绝对路径>", "sessionId": "session-xxxx", "startedAt": "2026-10-30T23:00:00+08:00", "heartbeatId": "..." }
 ```
 
 - 文件名用 `<sessionId>.json` → 多项目并发互不覆盖；
@@ -284,7 +284,7 @@ $f = Get-ChildItem "$env:USERPROFILE\.dsh\sessions" -Recurse -Filter 'session.v4
 **操作**：新开会话，粘这一段（把路径换成你的）：
 
 ```text
-按 night-shift skill 进入无人值守夜班模式，完成 F:\<你的工作区>\.tmp\smoke-plan.md 里的全部任务。
+按 night-shift skill 进入无人值守夜班模式，完成 <你的工作区>/.tmp/smoke-plan.md 里的全部任务。
 清单就在那个文件里。我现在离开设备，不会回答任何问题；拿不准按 skill 的习惯默认处置并记 DECISIONS.md。
 做完输出 === DONE === 加产物路径与文件大小。
 ```
