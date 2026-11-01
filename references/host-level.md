@@ -43,7 +43,7 @@ $DSH_HOME/night-shift/                 # Windows: ~\.dsh\night-shift\   macOS: ~
 | `centralKnowledge` | `$DSH_HOME/night-shift/central-knowledge` | **skill**（项目初始化的指针块） | 改后已初始化项目的指针要重写 |
 | `dshExecutable` | 自动探测 | **看门狗**（拉起进程） | 路径错 → 崩溃时拉不起来 |
 | `dshProcessName` | `DeepSeek Harness` | **看门狗**（进程检测） | 应用改名后要同步 |
-| `heartbeatSeconds` | `900`（15 分钟） | **skill**（建提醒时读，不写死） | 改小→恢复快但更贵；改大→相反 |
+| `heartbeatSeconds` | `900`（15 分钟） | **skill**（建提醒时读，不写死） | 改小→恢复快但更贵；改大→相反。**建提醒的时序参数必须是 `every_seconds`（周期），不是 `after_seconds`（一次性）**——一次性到点若会话忙则永久错过，2026-11-01 实测两次翻车 |
 | `stallMinutes` | `40` | 看门狗（仅 `enableStallCheck=true`） | **应与心跳联动**：≈ 2×`heartbeatSeconds`/60 + 10 |
 | `enableStallCheck` | `false` | 看门狗 | 开了才判卡死；长任务多的项目别开 |
 | `staleHours` | `18` | 看门狗（清陈旧 run） | 夜班可能超 18 小时时才调大 |
@@ -146,3 +146,225 @@ $DSH_HOME/night-shift/                 # Windows: ~\.dsh\night-shift\   macOS: ~
 
 - skill 与项目模板里**不写死绝对路径**：集中通用层统一写成 `<centralKnowledge>`，由 `config.json` 提供；项目路径一律相对工作区。
 - 模板里的命令**按 OS 分支给两条**（Windows / macOS），不假设平台。
+
+## 十、子代理路由：两个真实踩过的坑（2026-11-01）
+
+子代理路由由 `tool-subagent.config.agentOptions` 决定（`provider` + `model`）。这条链上有两个地方会静默失效——**症状都是"子代理报告自己是父代理的模型"**，没有任何报错。
+
+### 坑 1：`provider` 拼写必须与 profile 里的 id 逐字符一致
+
+`agentOptions.provider` 的值必须是 desktop profile `llm-pi-ai.providers` 下**真实存在的键名**。DSH 不存在的 provider **不会报错**，子代理直接退回父代理路由。
+
+```yaml
+# ✗ provider: <旧的自定义 provider 名>（profile 里已无此 id）
+# ✓ provider: <profile 里真实存在的 provider id>
+```
+
+profile 里的 provider 键名是 DSH 升级 + 用户改名共同决定的，**不要靠记忆或旧文档**；改前先查：
+
+```powershell
+Select-String -Path "$env:USERPROFILE\.dsh\profiles\desktop\cordis.patch.yml" -Pattern '^\s{6}[a-z0-9\-]+:$' | ForEach-Object { $_.Line.Trim().TrimEnd(':') }
+```
+
+### 坑 2：`agentOptions` 必须写在会话实际使用的 preset 里
+
+DSH 的 preset 是**按 `agentPreset` 字段选的**，而新会话默认可能用内置 `standard`（不是你自定义的 preset）。在自定义 preset 里写 `agentOptions`，对 `standard` 会话完全不生效。
+
+查当前会话用了哪个 preset（会话日志首行）：
+
+```powershell
+# 取最新会话日志首行（含 agentPreset 字段）
+$f = Get-ChildItem "$env:USERPROFILE\.dsh\sessions" -Recurse -Filter 'session.v4.jsonl.zstd' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+# 或直接看最近会话的首行
+```
+
+若确认是 `standard`，**覆盖内置预设声明**（在 profile patch 末尾加 `- id: preset-standard` 块，`config` 需完整重述——这是 DSH 的 Loader 行 id 覆盖机制）：
+
+```yaml
+# ~/.dsh/profiles/desktop/cordis.patch.yml 末尾追加
+# 原因：standard 的 tool-subagent 没有 agentOptions，子代理只能继承父代理模型
+# 来源：dsh-web-app/presets/standard.patch.yml（app.asar）→ DSH 升级内置预设后需重新生成
+- id: preset-standard
+  config:
+    id: standard
+    order: 1
+    plugins:
+      # …（完整重述内置 standard 的 22 个 plugins）…
+      # 其中 tool-subagent 行加：
+      - id: tool-subagent
+        name: '@deepseek-ai/dsh-tool-subagent'
+        config:
+          provider: spawn
+          toolName: subagent
+          modelSelectionSettings: true
+          agentOptions:
+            provider: <profile 里真实存在的 provider id>
+            model: <最便宜的 model id>
+```
+
+> ⚠️ profile patch 里的 `config` 是**完整替换**（不是合并），重述时要带上 `id`、`order`、全部 `plugins`。改完整份 patch 解析 OK、`tool-subagent.config.agentOptions` 存在后才算成功。
+
+### 验证子代理路由（唯一可信方法）
+
+`config.json` 里的 `hostSetup.subagentModel` **只是记录**，不决定行为；真正生效的是 preset / profile patch。验证必须**真派一个子代理**，问它自己的模型标识——子代理的系统提示里 `powered by ... model` 那句是 DSH 按**实际路由**生成的，可信。
+
+**在要验证的会话里发送：**
+
+```text
+帮我做一个「子代理路由自检」。只做这几步，不要修改任何文件、不要提交、不要安装任何东西、不要派第二个子代理：
+
+1. 调用 subagent 工具派一个子代理，它的 prompt 用这一段（原样）：
+   不要调用任何工具、不要读取任何文件。用一句话回答两件事：
+   ① 你系统提示开头 "powered by … model" 那句的原文是什么？
+   ② 你能看到的模型标识是什么？
+
+2. 等它返回，把它的话原样贴出来，不要改写、不要总结。
+
+3. 按下面规则给出结论行：
+   - 子代理报告的模型标识含 <期望的便宜 model id> → RESULT: PASS
+   - 报告的是 <父代理模型 id> 或其它值 → RESULT: FAIL
+   - subagent 工具本身报错 → 原样贴出错误信息，打印 RESULT: ERROR
+
+最后只回：子代理原话 / RESULT 行。
+```
+
+判读：
+
+| RESULT | 含义 | 处理 |
+|---|---|---|
+| `PASS` | agentOptions 生效 | 收工 |
+| `FAIL` | 坑 1 或坑 2 → 查 provider 拼写 + 当前会话 preset | 见上方 §十 |
+| `ERROR` | 路由预检失败 | 错误信息通常点名 provider，贴回排查 |
+
+> **改 profile patch 后必须完全退出 DSH 再重开**（preset 声明在启动时加载，不热更新）。旧会话不受影响，只有新会话生效。
+
+## 十一、安装后验证清单（给 Agent 直接抄作业）
+
+> 新用户装完 night-shift 后，按下面 **两道自检** 逐条跑。每条都是"粘进新会话就能执行"的完整 prompt，Agent 照抄即可，无需再解释。
+
+### 自检 A：子代理路由是否真生效（必做，1 分钟）
+
+**为什么必须做**：`agentOptions` 配错（provider 拼写 / 写错 preset）**不会报错**，子代理会静默退回父代理模型，你以为配了便宜模型其实没配。唯一可信的验证是**真派一个子代理问它自己的模型标识**。
+
+**操作**：新开一个会话，整段粘贴：
+
+```text
+帮我做一个「子代理路由自检」。只做这几步，不要修改任何文件、不要提交、不要安装任何东西、不要派第二个子代理：
+
+1. 调用 subagent 工具派一个子代理，它的 prompt 用这一段（原样）：
+   不要调用任何工具、不要读取任何文件。用一句话回答两件事：
+   ① 你系统提示开头 "powered by … model" 那句的原文是什么？
+   ② 你能看到的模型标识是什么？
+
+2. 等它返回，把它的话原样贴出来，不要改写、不要总结。
+
+3. 按下面规则给出结论行：
+   - 子代理报告的模型标识 == 你在 agentOptions 里配的那个便宜模型 → RESULT: PASS
+   - 报告的是父代理的模型或其它值 → RESULT: FAIL
+   - subagent 工具本身报错 → 原样贴出错误信息，打印 RESULT: ERROR
+
+最后只回：子代理原话 / RESULT 行。
+```
+
+判读与处理见 §十。`FAIL` 时按 §十 的两个坑逐条查（provider 拼写 → 当前会话 preset）。
+
+### 自检 B：skill 主链路是否可用（必做，约 10 分钟）
+
+**为什么必须做**：skill 的价值在"我走了它自己跑"。所以必须实测**挂机门禁 → 杀进程 → 看门狗拉起 → 心跳续跑 → 任务完成 → 自清**这条完整链路，而不是只看它能读文件。
+
+**前置**：随便准备一个 5–10 分钟能做完的小任务（例：在工作区 `.tmp\smoke\` 写一个含 3 段文字的 `index.html`）。任务清单**写进文件**（不要粘进对话），例：
+
+```markdown
+# 冒烟任务
+- [ ] 1. 生成 .tmp\smoke\index.html：单文件、无外部依赖、内联样式，含 3 段说明文字
+- [ ] 2. 用 pwsh 统计文件大小并写进 night-shift/summaries 的任务总结
+- [ ] 3. 在文件里把两条任务标 ✅ 并附总结链接
+```
+
+**操作**：新开会话，粘这一段（把路径换成你的）：
+
+```text
+按 night-shift skill 进入无人值守夜班模式，完成 F:\<你的工作区>\.tmp\smoke-plan.md 里的全部任务。
+清单就在那个文件里。我现在离开设备，不会回答任何问题；拿不准按 skill 的习惯默认处置并记 DECISIONS.md。
+做完输出 === DONE === 加产物路径与文件大小。
+```
+
+**测试前先调短两个间隔（强烈建议，否则一次测试要等十几分钟）**——真机跑之前，让 agent 或你自己把间隔临时改成：**看门狗 3 分钟、心跳 1 分钟（60 秒）**。
+
+```powershell
+# 看门狗：3 分钟（提权，改计划任务触发器；setup.ps1 默认 10 分钟）
+pwsh -NoProfile -Command "`$t=Get-ScheduledTask -TaskName 'DSH Night Watchdog'; `$a=$t.Actions; `$tr=New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 3); `$s=Get-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew; Set-ScheduledTask -TaskName 'DSH Night Watchdog' -Action `$a -Trigger `$tr -Settings `$s"
+
+# 心跳：900 → 60 秒（写主机级 config.json；skill 建心跳时读它）
+(Get-Content "$env:USERPROFILE\.dsh\night-shift\config.json" -Raw) -replace '"heartbeatSeconds": \d+', '"heartbeatSeconds": 60' | Set-Content "$env:USERPROFILE\.dsh\night-shift\config.json" -Encoding utf8
+```
+
+> **测完必须改回**：看门狗 10 分钟、心跳 900 秒（真实夜班用大值，间隔太小会烧 token，见 §十二）。改回就是同样两条命令把 `-Minutes 3` 换回 `-Minutes 10`、`60` 换回 `900`。
+> **不要直接跑 `setup.ps1` 来"改回"**：它会把看门狗重置成 10 分钟（这是对的），但它同时覆盖主机副本脚本——如果你改了本地脚本，会被冲掉。
+
+然后**按门禁信号操作**（门禁是**三重信号**，任一缺失都算没执行）：
+
+1. **看聊天窗口**：应弹出一张 `present` 卡片 + 正文里出现 `✅ NIGHT-SHIFT READY TO LEAVE` 块。这是你"可以走"的**可视信号**；
+2. **看磁盘**：`night-shift/GATE.md` 存在且内容就是门禁块——这是**硬留证**；
+3. 核对块里 `heartbeat: every_seconds=…` 与 `~/.dsh/night-shift/runs/` 出现**本会话**的 JSON；
+4. 在它干活途中杀 DSH：`Stop-Process -Name 'DeepSeek Harness' -ErrorAction SilentlyContinue`
+5. 等**看门狗间隔**（测试建议 3 分钟），确认 `~/.dsh/night-shift/watchdog.log` 出现新的 `starting` 行；
+6. DSH 自动弹回后打开该会话，确认它自己接着干完（轮到 `=== DONE ===`）。
+
+**判读**：
+
+| 现象 | 结论 |
+|---|---|
+| 聊天里有门禁卡片/正文块 **且** `night-shift/GATE.md` 存在 **且** 看门狗拉起、任务续完、收尾删心跳/run + 调了 sweep | ✅ PASS |
+| 聊天里什么都没有，但 `GATE.md` 存在 | 门禁"做了但没让你看见" → 顺手把 `GATE.md` 给用户看即可，不影响挂机 |
+| **没有 `night-shift/GATE.md`**（哪怕任务做完了） | **门禁没执行** → 模型跳过了 §0.8。先查安装副本是否最新；若最新仍跳过，说明 prompt/模型轨迹过于工具化，需要换更强的约束 |
+| 有 `GATE.md` 但任务做完后仍反复被唤醒 | 装了插件却没调 `sweep_schedule_inbox` → 见 §十二 |
+| 看门狗没拉起 | 查计划任务 `DSH Night Watchdog` 是否存在、间隔、动作是否 wscript |
+| 拉起后不续跑 | 查 `HEARTBEAT.md` 是否有 id、`schedule_list` 是否还在、`runs/` 是否还在 |
+| 任务完成后仍被反复唤醒 | 装了插件却没调 `sweep_schedule_inbox` → 见 §十二（积压排空） |
+
+### 自检 C：可选增强——装 `dsh-plugin-schedule-sweep` 消除积压（可选）
+
+见 §十二。**不装也能用**，只是任务完成前堆积的心跳会在完成后空转几轮。
+
+安装（装完**重启 DSH** 生效，装载进 desktop profile 的 bundles）：
+
+```powershell
+dsh plugin --profile desktop add dsh-plugin-schedule-sweep
+# 若从本地源码目录安装（路径换成你自己的插件目录）：
+# dsh plugin --profile desktop add <你的插件本地路径>
+```
+
+然后把 `dsh-plugin-schedule-sweep` 加进 `$DSH_HOME\profiles\desktop\package.json` 的
+`dsh.profile.bundles` 数组（`dsh plugin add` 只装依赖，`bundles` 决定它是否被加载）。
+
+验证工具已注册：重启后新开会话，问 agent「你有哪些 sweep 相关工具」，应能看到
+`sweep_schedule_inbox`；或在会话里直接调 `sweep_schedule_inbox`（干净会话应返回
+`removed: 0`）。若报 `tool "sweep_schedule_inbox" is already registered`，说明同一
+composition 里装了两次（查 bundles 是否重复）。
+
+## 十二、已知问题：任务完成前的心跳积压（有解，但需可选插件）
+
+**现象**：任务完成、删掉心跳后，仍会连开若干轮空转（每轮约 10 秒、0 次工具调用）。
+
+**根因（读源码确认）**：心跳每 N 秒把一条提醒 `followup()` 推进 **agent 收件箱**；模型忙时消息堆在收件箱，空闲后**每条各起一轮 turn**。`schedule_delete` 只删任务行（平台文档原话 `leaving queued messages intact`），**清不掉已进的收件箱**。
+
+**影响量化**：积压轮数 ≈ 任务连续工作时长 ÷ 心跳间隔。60s + 2 小时 ≈ 120 轮；900s + 2 小时 ≈ 8 轮。
+
+**缓解（skill 侧，无需插件）**：
+1. `heartbeatSeconds` 按任务规模选（≥ 单任务预计时长 × 6；真实夜班用 900s）；
+2. 排空轮已写死"不读文件、不调工具，只回一行"（成本 = 一次历史 input，不是任务本身）；
+3. 任务完成即删心跳（停掉后续触发）。
+
+**根治（插件）**：装 `dsh-plugin-schedule-sweep` 后，skill 收尾时**必须调用** `sweep_schedule_inbox`（SKILL §0.5 已写成硬要求：工具在列表里就必须调），把收件箱里 `source.kind==='schedule'` 的待处理消息全部删掉——**只删心跳消息，不动用户真消息**。不装则跳过这一步（工具不在列表里，自然不调）。
+
+收尾完整顺序（四步，不可颠倒）：
+
+```text
+1. 任务全 ✅ → 写 brief / summary / DECISIONS
+2. 在 HEARTBEAT.md 历史区追加一行删除记录
+3. schedule_delete(<心跳 id>)
+4. sweep_schedule_inbox()   ← 工具在列表里就必须调；不在就跳过
+```
+
+> 2026-11-01 实测：插件装好了，但模型从没主动调过（文档当时写的是"可选"）→ 残留心跳继续空转。所以 SKILL §0.5 已把这一步改成"**有工具就必调**"，不再依赖模型自觉。

@@ -129,7 +129,7 @@ sequenceDiagram
     A->>U: 一次性问完预检问题
     U-->>A: 回答（可只回"都按你建议的"）
     A->>G: 挂 Goal（max_goal_rounds）
-    A->>H: schedule_create(15 分钟心跳)
+    A->>H: schedule_create(every_seconds=15 分钟)
     A->>F: 写 runs/<sessionId>.json + HEARTBEAT.md
     loop 每个任务
         A->>F: 调研（通用层→项目 knowledge→外部，限 10 分钟）

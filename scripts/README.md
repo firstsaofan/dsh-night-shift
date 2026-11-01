@@ -63,3 +63,4 @@ bash setup.sh -u    # 卸载
 - **本机统一用 PowerShell 7（`pwsh`），不用 5.1（`powershell.exe`）**（全局 AGENTS.md §9）：脚本 `#Requires -Version 7.0`，`setup.ps1` 找不到 `pwsh` 会直接报错而不是退回 5.1；计划任务也用 `pwsh` 运行。
 - 脚本内容为 ASCII，`config.json` 以 **UTF-8 无 BOM** 读写（仍显式指定编码，防止将来有人用 5.1 跑出乱码）。
 - 改脚本的正确方式：改仓库 → 重跑 `setup`（覆盖主机副本），不要直接改 `~/.dsh/night-shift/scripts/` 里的副本。
+- **改 night-shift 的唯一入口是私有库仓库**：`SKILL.md`、`references/`、`scripts/`、文档一律先在 `firstsaofanskills/night-shift/` 里改，改完再同步覆盖出去；**安装副本（`~/.dsh/skills/night-shift/`）只能由「仓库 → 安装副本」的同步覆盖，不要手改**——手改会被下次同步冲掉，而且两份一旦漂移，DSH 实际加载的就是旧版本（2026-11-01 实测踩过：安装副本的 `SKILL.md` 正文比仓库旧一行）。同步命令（私有库维护者工具，`_tools/` 不随本 skill 分发）：`pwsh -NoProfile -File _tools/sync-night-shift-install.ps1`（加 `-DryRun` 先预演）；公开库一侧用 `_tools/sync-night-shift-public.ps1`。
