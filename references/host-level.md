@@ -341,10 +341,27 @@ dsh plugin --profile desktop add https://github.com/firstsaofan/dsh-plugin-sched
 然后把 `dsh-plugin-schedule-sweep` 加进 `$DSH_HOME\profiles\desktop\package.json` 的
 `dsh.profile.bundles` 数组（`dsh plugin add` 只装依赖，`bundles` 决定它是否被加载）。
 
-验证工具已注册：重启后新开会话，问 agent「你有哪些 sweep 相关工具」，应能看到
-`sweep_schedule_inbox`；或在会话里直接调 `sweep_schedule_inbox`（干净会话应返回
-`removed: 0`）。若报 `tool "sweep_schedule_inbox" is already registered`，说明同一
-composition 里装了两次（查 bundles 是否重复）。
+#### 插件装好没装好，怎么验（两级）
+
+**第一级：确认工具在（30 秒）** —— 重启 DSH 后新开会话，让 agent 调用：
+
+```text
+调用 sweep_schedule_inbox，dry_run=true，把结果原样贴出来
+```
+
+- 返回类似 `{removed: 0, remaining: 0, scannedKinds: ["schedule"]}` → 工具在，✅ 装好了。
+- agent 说"没有这个工具" → 没加载成功（查：是否重启 DSH、`bundles` 是否加了）。
+- 报 `tool "sweep_schedule_inbox" is already registered` → 同一 composition 装了两份（查 `bundles` 是否重复）。
+
+**第二级：确认真的能删（约 5 分钟，可选但推荐）** —— `dry_run` 只证明"能读不写"，
+真删路径要制造积压才能验：
+
+1. 建一个 `every_seconds=60` 的心跳，让它忙几分钟（跑个小任务），收件箱会堆几条；
+2. 调 `sweep_schedule_inbox`（不带 dry_run），看返回 `removed > 0`；
+3. 再调一次确认 `remaining` 归零，且之后不再有新的空转轮。
+
+> 本机实测（2026-11-01）：sweep 后 3 条排队消息被 `agent/inbox/spliced {outcome: canceled}` 持久取消，
+> 之后 0 条新 reminder、0 个新 turn —— 这就是"任务完成后不再空转"的效果。
 
 ## 十二、已知问题：任务完成前的心跳积压（有解，但需可选插件）
 
@@ -354,10 +371,18 @@ composition 里装了两次（查 bundles 是否重复）。
 
 **影响量化**：积压轮数 ≈ 任务连续工作时长 ÷ 心跳间隔。60s + 2 小时 ≈ 120 轮；900s + 2 小时 ≈ 8 轮。
 
-**缓解（skill 侧，无需插件）**：
-1. `heartbeatSeconds` 按任务规模选（≥ 单任务预计时长 × 6；真实夜班用 900s）；
-2. 排空轮已写死"不读文件、不调工具，只回一行"（成本 = 一次历史 input，不是任务本身）；
-3. 任务完成即删心跳（停掉后续触发）。
+**缓解与间隔选择（分"装没装插件"两种）**：
+
+| 是否装插件 | 推荐 `heartbeatSeconds` | 理由 |
+|---|---|---|
+| **已装 `dsh-plugin-schedule-sweep`** | **300 秒（5 分钟）** | 完成后积压由 `sweep_schedule_inbox` 一次性清空，间隔的价值回到"任务推进节奏"上；300s 让任务间隙最多等 5 分钟，又不会堆太多（6 小时 ≈ 72 条），内存/崩溃面可控。**推荐这个值**。 |
+| **没装插件** | **900 秒（15 分钟，skill 默认）** | 没有 sweep 兜底，完成后的空转只能靠"间隔大"来压。此时小间隔会让完成后空转成倍增加（60s + 2 小时 ≈ 120 轮空转烧 token）。**所以没装插件就用默认 900s，并强烈建议装插件。** |
+
+> 一句话：**装了插件 → 300s；没装插件 → 900s（并建议去装插件）。** 不要用 60s 跑真实夜班（除非在测试）。
+
+**其他缓解手段（两种都要做）**：
+1. 排空轮已写死"不读文件、不调工具，只回一行"（成本 = 一次历史 input，不是任务本身）；
+2. 任务完成即删心跳（停掉后续触发）。
 
 **根治（插件）**：装 [`dsh-plugin-schedule-sweep`](https://github.com/firstsaofan/dsh-plugin-schedule-sweep) 后，skill 收尾时**必须调用** `sweep_schedule_inbox`（SKILL §0.5 已写成硬要求：工具在列表里就必须调），把收件箱里 `source.kind==='schedule'` 的待处理消息全部删掉——**只删心跳消息，不动用户真消息**。不装则跳过这一步（工具不在列表里，自然不调）。
 

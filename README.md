@@ -350,6 +350,24 @@ habit 规则（habits.md 默认表 + 夜班 preset）在正式挂机前用 eval 
 dsh plugin --profile desktop add https://github.com/firstsaofan/dsh-plugin-schedule-sweep
 ```
 
+#### 装好后怎么验（两级）
+
+**① 确认工具在（30 秒）**：重启 DSH 后新开会话，让 agent 调用
+`sweep_schedule_inbox`（`dry_run=true`），返回 `{removed:0, remaining:0, scannedKinds:["schedule"]}`
+即装好；说"没这个工具"则未加载（查是否重启、bundles 是否加了）。
+
+**② 确认真的能删（约 5 分钟，可选）**：建 `every_seconds=60` 心跳 → 忙几分钟让收件箱堆几条 →
+调 `sweep_schedule_inbox`（不带 dry_run）→ 看 `removed > 0` 且之后不再空转。
+
+#### 间隔怎么选（装了插件 vs 没装）
+
+| 是否装插件 | 推荐心跳 `heartbeatSeconds` |
+|---|---|
+| **装了插件** | **300 秒（5 分钟）** —— 完成后积压被 sweep 清空，间隔回到"任务节奏"作用；300s 推进快、堆积可控 |
+| **没装插件** | **900 秒（15 分钟，skill 默认）** —— 没 sweep 兜底，只能靠大间隔压完成后的空转；**建议去装插件** |
+
+> 不要用 60s 跑真实夜班（只用于测试）。看门狗间隔与插件无关，默认 **10 分钟**。
+
 详见 `references/host-level.md §十一 自检C` 与 `§十二`。
 
 ## 边界（本 skill 不做什么）
