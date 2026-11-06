@@ -1,8 +1,12 @@
+[简体中文](README.md) | English
+
 # night-shift — unattended automation pipeline (pure skill)
 
 > **The name is historical.** It applies whenever **the human is away from the device** — night, commute, meetings, lunch. The only criterion: the agent can keep making progress without you.
->
-> 中文版（主文档）：[`README.md`](README.md) · 设计说明：[`DESIGN.md`](DESIGN.md)（中文）
+
+> 🔗 **Sibling repo**: for medium/large projects with parallel tasks, review, rework and merge, use [**night-shift-team** (Agent Teams edition)](https://github.com/firstsaofan/dsh-night-shift-team). This repo targets solo/small projects with one-shot `subagent` calls and configurable cheap models. Both share the same unattended infrastructure and **cannot be mixed on the same DSH instance**.
+
+> Design notes (in Chinese): [`DESIGN.md`](DESIGN.md)
 > **Not on DSH?** See [`PORTING.md`](PORTING.md) — the skill is **bound to DSH's automation layer** (heartbeat / goal rounds / sub-agents / crash recovery); the rules layer is portable. It includes a per-capability porting checklist for Claude Code, Codex, and any CLI agent.
 
 A DSH skill that makes an agent complete a task list while you are away: implement → verify (evidence-based) → decide by your habits → commit per task (never push) → write summaries → leave you a 5-minute morning brief.

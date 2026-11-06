@@ -1,11 +1,14 @@
+简体中文 | [English](README.en.md)
+
 # night-shift — 无人值守流水线（纯 skill 版）
 
 > **名字叫 night-shift，但适用条件是"人不在设备前"，不是"晚上"**：出门、开会、通勤、吃饭、睡觉都算无人值守时段。判断标准只有一条——**你不在场时它也能按规则自主推进**。
 
+> 🔗 **姐妹仓库**：中大型项目 / 需要多任务并发、code review、返工与合并 → 用 [**night-shift-team**（Agent Teams 版）](https://github.com/firstsaofan/dsh-night-shift-team)。本仓面向个人 / 小项目，用 `subagent` 一次性子代理、可配便宜模型；两者共用同一套无人值守基础设施，**同一 DSH 实例不可混用**。
+
 > **想先搞懂结构？** 看 [`DESIGN.md`](DESIGN.md)：一页看懂 → 全景架构 → 一夜时序 → 单任务闭环 → 崩溃恢复 → 依赖决策 → 知识流向 → 文件地图 → 参数表 → 常见误解。
 > **给 agent 的操作手册**：本目录 `SKILL.md` + `references/`（agent 会按需加载，人不必读完）。
 > **本文 README 是给人看的**：怎么用、为什么这么设计、什么时候该加脚本/小系统。
-> **English**: [`README.en.md`](README.en.md)
 > **不是 DSH 用户？** 看 [`PORTING.md`](PORTING.md)：这个 skill **绑定 DSH 的自动化层**（心跳/轮次/子代理/崩溃恢复），但规则层可移植；里面有逐项改造清单（Claude Code / Codex / 任意 CLI agent）。
 
 让 DSH 在你睡觉/不在电脑前时自主完成任务列表：实现 → 验证（证据制）→ 按你的习惯决策 → 提交（不 push）→ 总结沉淀 → 早上给你一份 5 分钟能扫完的简报。
