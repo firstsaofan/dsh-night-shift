@@ -341,17 +341,26 @@ habit 规则（habits.md 默认表 + 夜班 preset）在正式挂机前用 eval 
 
 ### 已落地的配套插件：`dsh-plugin-schedule-sweep`
 
-目前唯一从"升级路线"变成真实代码的配套插件，开源地址：
-<https://github.com/firstsaofan/dsh-plugin-schedule-sweep>
+目前唯一从"升级路线"变成真实代码的配套插件。它解决**任务完成前心跳堆积、完成后空转烧 token** 的问题（心跳每 N 秒往 agent 收件箱推一条提醒，`schedule_delete` 清不掉已排队消息）。装了它，skill 收尾会多调一次 `sweep_schedule_inbox` 把积压清空。**可选**——不装 skill 照常能用，只是完成后会多几轮空转。
 
-它解决**任务完成前心跳堆积、完成后空转烧 token** 的问题（心跳每 N 秒往 agent 收件箱推一条提醒，
-`schedule_delete` 清不掉已排队消息）。装了它，skill 收尾会多调一次 `sweep_schedule_inbox`
-把积压清空。**可选**——不装 skill 照常能用，只是完成后会多几轮空转。
+**两种安装方式（任选其一）**：
+
+| 方式 | 命令 | 适用 |
+|---|---|---|
+| **npm 安装**（推荐） | `npm i dsh-plugin-schedule-sweep` | 用已发布到 npm 的版本，最省事 |
+| **源码安装** | `dsh plugin --profile desktop add https://github.com/firstsaofan/dsh-plugin-schedule-sweep` | 想改插件源码、或用本地未发布版本（仓库自带构建产物，无需本地 build） |
+
+插件地址：npm <https://www.npmjs.com/package/dsh-plugin-schedule-sweep?activeTab=readme> ｜ 源码 <https://github.com/firstsaofan/dsh-plugin-schedule-sweep>
 
 ```powershell
-# 从 Git 直接装（仓库自带构建产物，无需本地 build），装完重启 DSH
+# 方式一：npm 安装（插件已发布到 npm）
+npm i dsh-plugin-schedule-sweep
+
+# 方式二：源码安装（从 Git 仓库直接装）
 dsh plugin --profile desktop add https://github.com/firstsaofan/dsh-plugin-schedule-sweep
 ```
+
+> 两种方式装完都要**重启 DSH** 才生效；并把 `dsh-plugin-schedule-sweep` 加进 `profiles/desktop/package.json` 的 `dsh.profile.bundles`。
 
 #### 装好后怎么验（两级）
 
